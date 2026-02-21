@@ -3,10 +3,15 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = 'django-insecure-v-saver-secret-key-2026'
+DEBUG = False
 
-DEBUG = True
+ALLOWED_HOSTS = [
+    'vsaverapi.imcbs.com',
+    'vsaverapi.imcbs.com',
+    'your-server-ip'
+]
 
-ALLOWED_HOSTS = ['*']
+STATIC_ROOT = os.path.join(BASE_DIR, 'static/')
 
 INSTALLED_APPS = [
     'django.contrib.admin',
