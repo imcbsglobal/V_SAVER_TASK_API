@@ -9,16 +9,18 @@ from .models import AccMaster, Misel, AccInvMast
 class AccMasterSerializer(serializers.ModelSerializer):
     class Meta:
         model            = AccMaster
-        fields           = ['code', 'name', 'place', 'exregnodate', 'super_code', 'phone2', 'synced_at']
+        fields           = ['code', 'name', 'place', 'exregnodate', 'super_code', 'phone2', 'client_id', 'synced_at']
         read_only_fields = ['synced_at']
 
 
 class BulkAccMasterSerializer(serializers.Serializer):
-    records = serializers.ListField(child=serializers.DictField())
+    records   = serializers.ListField(child=serializers.DictField())
+    client_id = serializers.CharField(max_length=50)
 
     def create(self, validated_data):
-        records = validated_data['records']
-        now = timezone.now()
+        records   = validated_data['records']
+        client_id = validated_data['client_id']
+        now       = timezone.now()
         objs = [
             AccMaster(
                 code        = r['code'],
@@ -27,6 +29,7 @@ class BulkAccMasterSerializer(serializers.Serializer):
                 exregnodate = r.get('exregnodate'),
                 super_code  = r.get('super_code'),
                 phone2      = r.get('phone2'),
+                client_id   = client_id,
                 synced_at   = now,
             )
             for r in records
@@ -39,7 +42,7 @@ class BulkAccMasterSerializer(serializers.Serializer):
                 objs,
                 update_conflicts=True,
                 unique_fields=['code'],
-                update_fields=['name', 'place', 'exregnodate', 'super_code', 'phone2', 'synced_at'],
+                update_fields=['name', 'place', 'exregnodate', 'super_code', 'phone2', 'client_id', 'synced_at'],
             )
         created = sum(1 for o in objs if o.code not in existing)
         return {'created': created, 'updated': len(objs) - created, 'total': len(records)}
@@ -50,23 +53,29 @@ class BulkAccMasterSerializer(serializers.Serializer):
 class MiselSerializer(serializers.ModelSerializer):
     class Meta:
         model            = Misel
-        fields           = ['id', 'firm_name', 'address1', 'synced_at']
+        fields           = ['id', 'firm_name', 'address1', 'client_id', 'synced_at']
         read_only_fields = ['synced_at']
 
 
 class BulkMiselSerializer(serializers.Serializer):
-    records = serializers.ListField(child=serializers.DictField())
+    records   = serializers.ListField(child=serializers.DictField())
+    client_id = serializers.CharField(max_length=50)
 
     def create(self, validated_data):
-        records = validated_data['records']
+        records   = validated_data['records']
+        client_id = validated_data['client_id']
         created = updated = 0
         for rec in records:
             _, is_new = Misel.objects.update_or_create(
                 firm_name=rec.get('firm_name'),
-                defaults={k: v for k, v in rec.items() if k != 'firm_name'}
+                client_id=client_id,
+                defaults={
+                    **{k: v for k, v in rec.items() if k != 'firm_name'},
+                    'client_id': client_id,
+                }
             )
             if is_new: created += 1
-            else: updated += 1
+            else:      updated += 1
         return {'created': created, 'updated': updated, 'total': len(records)}
 
 
@@ -75,22 +84,25 @@ class BulkMiselSerializer(serializers.Serializer):
 class AccInvMastSerializer(serializers.ModelSerializer):
     class Meta:
         model            = AccInvMast
-        fields           = ['slno', 'invdate', 'customerid', 'nettotal', 'synced_at']
+        fields           = ['slno', 'invdate', 'customerid', 'nettotal', 'client_id', 'synced_at']
         read_only_fields = ['synced_at']
 
 
 class BulkAccInvMastSerializer(serializers.Serializer):
-    records = serializers.ListField(child=serializers.DictField())
+    records   = serializers.ListField(child=serializers.DictField())
+    client_id = serializers.CharField(max_length=50)
 
     def create(self, validated_data):
-        records = validated_data['records']
-        now = timezone.now()
+        records   = validated_data['records']
+        client_id = validated_data['client_id']
+        now       = timezone.now()
         objs = [
             AccInvMast(
                 slno       = r['slno'],
                 invdate    = r.get('invdate'),
                 customerid = r.get('customerid'),
                 nettotal   = r.get('nettotal'),
+                client_id  = client_id,
                 synced_at  = now,
             )
             for r in records
@@ -103,7 +115,7 @@ class BulkAccInvMastSerializer(serializers.Serializer):
                 objs,
                 update_conflicts=True,
                 unique_fields=['slno'],
-                update_fields=['invdate', 'customerid', 'nettotal', 'synced_at'],
+                update_fields=['invdate', 'customerid', 'nettotal', 'client_id', 'synced_at'],
             )
         created = sum(1 for o in objs if o.slno not in existing)
         return {'created': created, 'updated': len(objs) - created, 'total': len(records)}

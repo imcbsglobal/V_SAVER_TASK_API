@@ -8,6 +8,7 @@ class AccMaster(models.Model):
     exregnodate  = models.CharField(max_length=30,  null=True, blank=True)
     super_code   = models.CharField(max_length=5,   null=True, blank=True)
     phone2       = models.CharField(max_length=60,  null=True, blank=True)
+    client_id    = models.CharField(max_length=50,  null=True, blank=True, db_index=True)
     synced_at    = models.DateTimeField(auto_now=True)
 
     class Meta:
@@ -21,6 +22,7 @@ class AccMaster(models.Model):
 class Misel(models.Model):
     firm_name    = models.CharField(max_length=150, null=True, blank=True)
     address1     = models.CharField(max_length=50,  null=True, blank=True)
+    client_id    = models.CharField(max_length=50,  null=True, blank=True, db_index=True)
     synced_at    = models.DateTimeField(auto_now=True)
 
     class Meta:
@@ -31,14 +33,11 @@ class Misel(models.Model):
 
 
 class AccInvMast(models.Model):
-    """
-    Invoice records synced from acc_invmast.
-    Only invoices where customerid belongs to a DEBTO account.
-    """
     slno         = models.BigIntegerField(primary_key=True)
     invdate      = models.DateField(null=True, blank=True)
     customerid   = models.CharField(max_length=30, null=True, blank=True)
     nettotal     = models.DecimalField(max_digits=16, decimal_places=3, null=True, blank=True)
+    client_id    = models.CharField(max_length=50,  null=True, blank=True, db_index=True)
     synced_at    = models.DateTimeField(auto_now=True)
 
     class Meta:
