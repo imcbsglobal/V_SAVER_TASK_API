@@ -149,11 +149,30 @@ class AccInvMastSummaryView(APIView):
         return Response(summary)
 
 
-class AccInvMastTruncateView(APIView):
-    def delete(self, request):
-        client_id = request.query_params.get('client_id')
+class AccInvMastSummaryView(APIView):
+    def get(self, request):
+        client_id  = request.query_params.get('client_id')
+        customerid = request.query_params.get('customerid')
         qs = AccInvMast.objects.all()
         if client_id:
             qs = qs.filter(client_id=client_id)
-        count, _ = qs.delete()
-        return Response({'deleted': count})
+
+        # Single customer summary
+        if customerid:
+            qs = qs.filter(customerid=customerid)
+            agg = qs.aggregate(
+                total_sales=Sum('nettotal'),
+                invoice_count=Count('slno'),
+            )
+            return Response({
+                'customerid':    customerid,
+                'total_sales':   agg['total_sales'] or 0,
+                'invoice_count': agg['invoice_count'] or 0,
+            })
+
+        # All-customers summary
+        summary = qs.aggregate(
+            total_invoices=Count('slno'),
+            total_amount=Sum('nettotal'),
+        )
+        return Response(summary)
