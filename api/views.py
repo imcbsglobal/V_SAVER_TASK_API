@@ -127,8 +127,21 @@ class AccInvMastSummaryView(APIView):
         qs = AccInvMast.objects.all()
         if client_id:
             qs = qs.filter(client_id=client_id)
+
+        # Single customer summary
         if customerid:
             qs = qs.filter(customerid=customerid)
+            agg = qs.aggregate(
+                total_sales=Sum('nettotal'),
+                invoice_count=Count('slno'),
+            )
+            return Response({
+                'customerid':    customerid,
+                'total_sales':   agg['total_sales'] or 0,
+                'invoice_count': agg['invoice_count'] or 0,
+            })
+
+        # All-customers summary (original behaviour)
         summary = qs.aggregate(
             total_invoices=Count('slno'),
             total_amount=Sum('nettotal'),
