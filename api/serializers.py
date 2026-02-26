@@ -21,31 +21,26 @@ class BulkAccMasterSerializer(serializers.Serializer):
         records   = validated_data['records']
         client_id = validated_data['client_id']
         now       = timezone.now()
-        objs = [
-            AccMaster(
-                code        = r['code'],
-                name        = r['name'],
-                place       = r.get('place'),
-                exregnodate = r.get('exregnodate'),
-                super_code  = r.get('super_code'),
-                phone2      = r.get('phone2'),
-                client_id   = client_id,
-                synced_at   = now,
+        created = updated = 0
+
+        # Use update_or_create scoped strictly to (code + client_id)
+        for r in records:
+            _, is_new = AccMaster.objects.update_or_create(
+                code      = r['code'],
+                client_id = client_id,
+                defaults  = {
+                    'name'       : r['name'],
+                    'place'      : r.get('place'),
+                    'exregnodate': r.get('exregnodate'),
+                    'super_code' : r.get('super_code'),
+                    'phone2'     : r.get('phone2'),
+                    'synced_at'  : now,
+                }
             )
-            for r in records
-        ]
-        existing = set(AccMaster.objects.filter(
-            code__in=[o.code for o in objs]
-        ).values_list('code', flat=True))
-        with transaction.atomic():
-            AccMaster.objects.bulk_create(
-                objs,
-                update_conflicts=True,
-                unique_fields=['code'],
-                update_fields=['name', 'place', 'exregnodate', 'super_code', 'phone2', 'client_id', 'synced_at'],
-            )
-        created = sum(1 for o in objs if o.code not in existing)
-        return {'created': created, 'updated': len(objs) - created, 'total': len(records)}
+            if is_new: created += 1
+            else:      updated += 1
+
+        return {'created': created, 'updated': updated, 'total': len(records)}
 
 
 # ── Misel ─────────────────────────────────────────────────
@@ -67,10 +62,10 @@ class BulkMiselSerializer(serializers.Serializer):
         created = updated = 0
         for rec in records:
             _, is_new = Misel.objects.update_or_create(
-                firm_name=rec.get('firm_name'),
-                client_id=client_id,
-                defaults={
-                    **{k: v for k, v in rec.items() if k != 'firm_name'},
+                firm_name = rec.get('firm_name'),
+                client_id = client_id,
+                defaults  = {
+                    'address1' : rec.get('address1'),
                     'client_id': client_id,
                 }
             )
@@ -96,26 +91,21 @@ class BulkAccInvMastSerializer(serializers.Serializer):
         records   = validated_data['records']
         client_id = validated_data['client_id']
         now       = timezone.now()
-        objs = [
-            AccInvMast(
-                slno       = r['slno'],
-                invdate    = r.get('invdate'),
-                customerid = r.get('customerid'),
-                nettotal   = r.get('nettotal'),
-                client_id  = client_id,
-                synced_at  = now,
+        created = updated = 0
+
+        # Use update_or_create scoped strictly to (slno + client_id)
+        for r in records:
+            _, is_new = AccInvMast.objects.update_or_create(
+                slno      = r['slno'],
+                client_id = client_id,
+                defaults  = {
+                    'invdate'   : r.get('invdate'),
+                    'customerid': r.get('customerid'),
+                    'nettotal'  : r.get('nettotal'),
+                    'synced_at' : now,
+                }
             )
-            for r in records
-        ]
-        existing = set(AccInvMast.objects.filter(
-            slno__in=[o.slno for o in objs]
-        ).values_list('slno', flat=True))
-        with transaction.atomic():
-            AccInvMast.objects.bulk_create(
-                objs,
-                update_conflicts=True,
-                unique_fields=['slno'],
-                update_fields=['invdate', 'customerid', 'nettotal', 'client_id', 'synced_at'],
-            )
-        created = sum(1 for o in objs if o.slno not in existing)
-        return {'created': created, 'updated': len(objs) - created, 'total': len(records)}
+            if is_new: created += 1
+            else:      updated += 1
+
+        return {'created': created, 'updated': updated, 'total': len(records)}
