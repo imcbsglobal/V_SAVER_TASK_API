@@ -1,6 +1,8 @@
+import logging
 from django.db.models import Sum, Count
 from django.utils import timezone
 from rest_framework import status
+from rest_framework.parsers import JSONParser, FormParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -10,6 +12,43 @@ from .serializers import (
     MiselSerializer, BulkMiselSerializer,
     AccInvMastSerializer, BulkAccInvMastSerializer,
 )
+
+logger = logging.getLogger(__name__)
+
+
+def _require_client_id(request):
+    """
+    Return (client_id, None) if present, or (None, error_response).
+
+    Checks in this order:
+      1. ?client_id= query param       <- most reliable, always works
+      2. X-Client-ID request header
+      3. request.data body             <- works on DELETE only when the view
+                                          declares parser_classes (see truncate views)
+
+    NOTE: DRF does NOT parse DELETE bodies by default — truncate views
+    override parser_classes so all three sources work.
+    """
+    client_id = (
+        request.query_params.get('client_id', '').strip()
+        or request.headers.get('X-Client-ID', '').strip()
+    )
+    # Body fallback — only effective when view declares parser_classes
+    if not client_id and hasattr(request, 'data') and isinstance(request.data, dict):
+        client_id = request.data.get('client_id', '').strip()
+
+    if not client_id:
+        logger.warning(
+            f"[AUTH] client_id missing — "
+            f"query={request.query_params.get('client_id', '')!r}, "
+            f"header={request.headers.get('X-Client-ID', '')!r}, "
+            f"method={request.method}"
+        )
+        return None, Response(
+            {'error': 'client_id is required. Pass as ?client_id=... or X-Client-ID header.'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    return client_id, None
 
 
 def _require_client_id(request):
@@ -70,6 +109,9 @@ class AccMasterBulkView(APIView):
 
 
 class AccMasterTruncateView(APIView):
+    # Explicitly declare parsers so DRF parses the JSON body on DELETE too
+    parser_classes = [JSONParser, FormParser, MultiPartParser]
+
     def delete(self, request):
         client_id, err = _require_client_id(request)
         if err:
@@ -99,6 +141,9 @@ class MiselBulkView(APIView):
 
 
 class MiselTruncateView(APIView):
+    # Explicitly declare parsers so DRF parses the JSON body on DELETE too
+    parser_classes = [JSONParser, FormParser, MultiPartParser]
+
     def delete(self, request):
         client_id, err = _require_client_id(request)
         if err:
@@ -160,7 +205,6 @@ class AccInvMastSummaryView(APIView):
         customerid = request.query_params.get('customerid')
         qs = AccInvMast.objects.filter(client_id=client_id)
 
-        # Single customer summary
         if customerid:
             qs = qs.filter(customerid=customerid)
             agg = qs.aggregate(

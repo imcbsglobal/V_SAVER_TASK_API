@@ -61,6 +61,10 @@ class BulkMiselSerializer(serializers.Serializer):
         client_id = validated_data['client_id']
         created = updated = 0
         for rec in records:
+            firm_name = rec.get('firm_name')
+            # Skip records with no firm_name — can't safely key on NULL
+            if not firm_name:
+                continue
             _, is_new = Misel.objects.update_or_create(
                 firm_name = rec.get('firm_name'),
                 client_id = client_id,
